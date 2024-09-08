@@ -1,27 +1,30 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors'); // Import the cors middleware
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
+
+// Enable CORS for all routes
+app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
 
 // Dialogflow webhook endpoint
 app.post('/webhook', (req, res) => {
-  const userInput = req.body.message || req.body.queryResult.queryText;  // Get user input from request body
+  const userInput = req.body.message || req.body.queryResult.queryText;
 
   console.log(`User input: ${userInput}`);
 
-  // Dummy response for now, this can be based on the intent detected from Dialogflow
+  // Dummy response for now
   const botResponse = `You said: "${userInput}"`;
 
-  // Send response back to the React frontend (or to Dialogflow if this is from Dialogflow)
   res.json({
-    fulfillmentText: botResponse, // This field is used by Dialogflow, also returned to React
+    fulfillmentText: botResponse,
   });
 });
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running on port ${port}`);
 });
