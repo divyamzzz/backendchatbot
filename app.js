@@ -7,9 +7,10 @@ const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
-// In-memory storage for conversation, number of adults, and state tracking
+// In-memory storage for conversation, number of adults, number of children, and state tracking
 let conversations = [];
 let numberOfAdults = null;  // To store the number of adults (null initially)
+let numberOfChildren = null;  // To store the number of children (null initially)
 let conversationState = 'ASK_ADULTS'; // Initialize state
 
 app.use(bodyParser.json());
@@ -98,12 +99,17 @@ app.post('/webhook', async (req, res) => {
         console.log("Number of adults is already set and will not be updated.");
         conversationState = 'ASK_CHILDREN'; // Move to the next state even if it is already set
       }
-    }
-
-    // Move to the next question based on the state
-    if (conversationState === 'ASK_CHILDREN') {
-      console.log("Bot is now asking: How many children?");
-      conversationState = 'ASK_DATE'; // After this question is answered, ask the next one
+    } else if (conversationState === 'ASK_CHILDREN') {
+      // Check if the user has responded with the number of children
+      const childrenMatch = userInput.match(/\d+/); // Check if the user input contains a number
+      if (childrenMatch && numberOfChildren === null) {
+        numberOfChildren = parseInt(childrenMatch[0], 10); // Set the number of children once
+        conversationState = 'ASK_DATE'; // Move to next state
+        console.log(`Number of children set to: ${numberOfChildren}`);
+      } else if (numberOfChildren !== null) {
+        console.log("Number of children is already set and will not be updated.");
+        conversationState = 'ASK_DATE'; // Move to the next state even if it is already set
+      }
     }
 
     // Store conversation in memory
@@ -116,7 +122,7 @@ app.post('/webhook', async (req, res) => {
     // Add conversation to the in-memory array
     conversations.push(conversation);
 
-    // Console log the entire conversation along with the number of adults if updated
+    // Console log the entire conversation along with the number of adults and children if updated
     console.log('Current conversation history:');
     conversations.forEach((conv, index) => {
       console.log(`\nConversation ${index + 1}`);
@@ -126,6 +132,7 @@ app.post('/webhook', async (req, res) => {
     });
 
     console.log(`Current number of adults: ${numberOfAdults}`);
+    console.log(`Current number of children: ${numberOfChildren}`);
 
     // Send the Dialogflow response back to the frontend
     res.json({
