@@ -1,46 +1,12 @@
-require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
-const fs = require('fs');
 const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for all routes
-
-// Create the service account credentials dynamically from the environment variable
-const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
-
-if (serviceAccountKey) {
-  const serviceAccountPath = './google-credentials.json';
-  fs.writeFileSync(serviceAccountPath, serviceAccountKey);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
-  console.log('Service account key has been successfully written to', serviceAccountPath);
-} else {
-  console.error('GOOGLE_APPLICATION_CREDENTIALS_CONTENTS is not set. Please set the environment variable.');
-  process.exit(1); // Exit if credentials are not available
-}
-
-// Dialogflow project ID
-const projectId = process.env.DIALOGFLOW_PROJECT_ID;
-
-if (!projectId) {
-  console.error('DIALOGFLOW_PROJECT_ID is not set. Please set the environment variable.');
-  process.exit(1); // Exit if project ID is not available
-} else {
-  console.log('Using Dialogflow project ID:', projectId);
-}
-
-// Get the service account details
-try {
-  const credentials = JSON.parse(serviceAccountKey);
-  console.log('Using service account:', credentials.client_email);
-} catch (error) {
-  console.error('Error parsing service account credentials:', error);
-  process.exit(1); // Exit if service account credentials parsing fails
-}
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -70,7 +36,7 @@ app.post('/webhook', async (req, res) => {
     // Send the request to Dialogflow and get the response
     const dialogflowClient = new dialogflow.SessionsClient();
     const responses = await dialogflowClient.detectIntent({
-      session: `projects/${projectId}/agent/sessions/12345`, // Use a static session ID if desired
+      session: `projects/${process.env.DIALOGFLOW_PROJECT_ID}/agent/sessions/12345`, // Use a static session ID if desired
       ...request,
     });
     const result = responses[0]?.queryResult;
@@ -79,11 +45,19 @@ app.post('/webhook', async (req, res) => {
       throw new Error('No response from Dialogflow');
     }
 
-    console.log('Dialogflow response:', result.fulfillmentText);
+    const fulfillmentText = result.fulfillmentText;
+
+    console.log('Dialogflow response:', fulfillmentText);
+
+    // **Console log the conversation**
+    console.log('Conversation:');
+    console.log(`User: ${userInput}`);
+    console.log(`Bot: ${fulfillmentText}`);
+    console.log('-------------------------------------');
 
     // Send the Dialogflow response back to the frontend
     res.json({
-      fulfillmentText: result.fulfillmentText,
+      fulfillmentText: fulfillmentText,
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
