@@ -53,6 +53,7 @@ app.post('/webhook', async (req, res) => {
   const sessionId = uuid.v4();
   const sessionClient = new dialogflow.SessionsClient();
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
+  console.log('Session Path:', sessionPath);
 
   // The text query request to Dialogflow
   const request = {
