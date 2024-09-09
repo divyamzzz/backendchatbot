@@ -2,27 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
-const uuid = require('uuid');
 const fs = require('fs');
-const session = require('express-session');  // Use express-session for session management
-const cors = require('cors');  // Import CORS middleware
-
+const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Use CORS middleware to allow requests from all origins
-app.use(cors());
-
-// Use session middleware
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'my-secret', // Session secret
-  resave: false,
-  saveUninitialized: true,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1-day session expiry
-}));
-
-// Use body-parser middleware to parse JSON requests
 app.use(bodyParser.json());
+app.use(cors()); // Enable CORS for all routes
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
@@ -47,9 +33,14 @@ if (!projectId) {
   console.log('Using Dialogflow project ID:', projectId);
 }
 
-// Initialize the Dialogflow SessionClient once and reuse it for the application lifecycle
-const sessionClient = new dialogflow.SessionsClient();
-console.log('Dialogflow client successfully initialized.');
+// Get the service account details
+try {
+  const credentials = JSON.parse(serviceAccountKey);
+  console.log('Using service account:', credentials.client_email);
+} catch (error) {
+  console.error('Error parsing service account credentials:', error);
+  process.exit(1); // Exit if service account credentials parsing fails
+}
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -60,26 +51,16 @@ app.post('/webhook', async (req, res) => {
 
   console.log(`User input: ${userInput}`);
 
-  // Check if session ID exists in the session, if not generate a new one
-  if (!req.session.dialogflowSessionId) {
-    req.session.dialogflowSessionId = uuid.v4();  // Generate a new session ID if none exists
-    console.log(`Generated new session ID: ${req.session.dialogflowSessionId}`);
-  } else {
-    console.log(`Reusing existing session ID: ${req.session.dialogflowSessionId}`);
-  }
-
-  const sessionId = req.session.dialogflowSessionId;
-  const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
-  console.log('Session Path:', sessionPath);
-
-  // The text query request to Dialogflow
+  // The text query request to Dialogflow (without session management)
   const request = {
-    session: sessionPath,
     queryInput: {
       text: {
         text: userInput, // The user's query
         languageCode: 'en',
       },
+    },
+    queryParams: {
+      timeZone: 'America/Los_Angeles', // You can set the time zone if needed
     },
   };
 
@@ -87,7 +68,11 @@ app.post('/webhook', async (req, res) => {
     console.log('Sending request to Dialogflow:', request);
 
     // Send the request to Dialogflow and get the response
-    const responses = await sessionClient.detectIntent(request);
+    const dialogflowClient = new dialogflow.SessionsClient();
+    const responses = await dialogflowClient.detectIntent({
+      session: `projects/${projectId}/agent/sessions/12345`, // Static session ID
+      ...request,
+    });
     const result = responses[0]?.queryResult;
 
     if (!result) {
@@ -107,6 +92,6 @@ app.post('/webhook', async (req, res) => {
 });
 
 // Start the server
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`);
 });
