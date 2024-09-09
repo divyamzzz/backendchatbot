@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 
 // In-memory storage for conversation and number of adults
 let conversations = [];
-let numberOfAdults = 0;  // To store the number of adults
+let numberOfAdults = null;  // To store the number of adults (null initially)
 
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for all routes
@@ -90,11 +90,13 @@ app.post('/webhook', async (req, res) => {
       console.log("Bot asked: How many adults?");
     }
 
-    // If the user has responded with a number, update the number of adults
+    // If the user has responded with a number and adults have not been set yet, update the number of adults
     const adultsMatch = userInput.match(/\d+/); // Check if the user input contains a number
-    if (adultsMatch && result.fulfillmentText.toLowerCase().includes("how many adults")) {
-      numberOfAdults = parseInt(adultsMatch[0], 10); // Update the number of adults
-      console.log(`Number of adults updated: ${numberOfAdults}`);
+    if (adultsMatch && result.fulfillmentText.toLowerCase().includes("how many adults") && numberOfAdults === null) {
+      numberOfAdults = parseInt(adultsMatch[0], 10); // Set the number of adults once
+      console.log(`Number of adults set to: ${numberOfAdults}`);
+    } else if (numberOfAdults !== null) {
+      console.log("Number of adults is already set and will not be updated.");
     }
 
     // Store conversation in memory
