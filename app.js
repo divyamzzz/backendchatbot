@@ -70,7 +70,7 @@ app.post('/webhook', async (req, res) => {
     // Send the request to Dialogflow and get the response
     const dialogflowClient = new dialogflow.SessionsClient();
     const responses = await dialogflowClient.detectIntent({
-      session: `projects/${projectId}/agent/sessions/12345`, // Static session ID
+      session: `projects/${projectId}/agent/sessions/12345`, // Use a static session ID if desired
       ...request,
     });
     const result = responses[0]?.queryResult;
