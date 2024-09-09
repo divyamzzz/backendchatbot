@@ -2,47 +2,59 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
-const cors = require('cors'); // Import CORS middleware
 const uuid = require('uuid');
 const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Enable CORS for all routes
-app.use(cors());
-
-// Middleware to parse JSON requests
 app.use(bodyParser.json());
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
+
 if (serviceAccountKey) {
   const serviceAccountPath = './google-credentials.json';
-  try {
-    fs.writeFileSync(serviceAccountPath, serviceAccountKey);
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
-    console.log('Service account credentials successfully written to', serviceAccountPath);
-  } catch (err) {
-    console.error('Error writing service account credentials:', err);
-    process.exit(1); // Exit if credentials can't be written
-  }
+  fs.writeFileSync(serviceAccountPath, serviceAccountKey);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
+  console.log('Service account key has been successfully written to', serviceAccountPath);
 } else {
-  console.error('GOOGLE_APPLICATION_CREDENTIALS_CONTENTS is not set');
+  console.error('GOOGLE_APPLICATION_CREDENTIALS_CONTENTS is not set. Please set the environment variable.');
   process.exit(1); // Exit if credentials are not available
 }
 
-// Check if the project ID environment variable is set
+// Dialogflow project ID
 const projectId = process.env.DIALOGFLOW_PROJECT_ID;
+
 if (!projectId) {
-  console.error('DIALOGFLOW_PROJECT_ID environment variable is not set');
-  process.exit(1);
+  console.error('DIALOGFLOW_PROJECT_ID is not set. Please set the environment variable.');
+  process.exit(1); // Exit if project ID is not available
 } else {
   console.log('Using Dialogflow project ID:', projectId);
 }
 
+let sessionClient;
+
+// Try to initialize the Dialogflow client and log if it's loaded
+try {
+  sessionClient = new dialogflow.SessionsClient();
+  console.log('Dialogflow client successfully initialized.');
+} catch (error) {
+  console.error('Error initializing Dialogflow client:', error);
+  process.exit(1); // Exit if client initialization fails
+}
+
+// Get the service account details
+try {
+  const credentials = JSON.parse(serviceAccountKey);
+  console.log('Using service account:', credentials.client_email);
+} catch (error) {
+  console.error('Error parsing service account credentials:', error);
+  process.exit(1); // Exit if service account credentials parsing fails
+}
+
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input from the request
+  const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
   if (!userInput) {
     return res.status(400).json({ error: 'No user input found in the request' });
   }
@@ -51,7 +63,6 @@ app.post('/webhook', async (req, res) => {
 
   // Create a new session
   const sessionId = uuid.v4();
-  const sessionClient = new dialogflow.SessionsClient();
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
   console.log('Session Path:', sessionPath);
 
@@ -68,7 +79,7 @@ app.post('/webhook', async (req, res) => {
 
   try {
     console.log('Sending request to Dialogflow:', request);
-    
+
     // Send the request to Dialogflow and get the response
     const responses = await sessionClient.detectIntent(request);
     const result = responses[0]?.queryResult;
@@ -85,13 +96,7 @@ app.post('/webhook', async (req, res) => {
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
-
-    // Check if it's an authentication error
-    if (error.code === 7) {
-      console.error('IAM permission error. Ensure the service account has the necessary permissions.');
-    }
-
-    res.status(500).json({ error: 'Error communicating with Dialogflow', details: error.message });
+    res.status(500).json({ error: 'Error communicating with Dialogflow' });
   }
 });
 
