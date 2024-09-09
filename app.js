@@ -44,51 +44,31 @@ try {
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
-  if (!userInput) {
-    return res.status(400).json({ error: 'No user input found in the request' });
-  }
+  const userInput = req.body.queryResult?.queryText; // Get user input from Dialogflow
+  const parameters = req.body.queryResult?.parameters; // Get parameters from Dialogflow
+
+  // Extract number of adults and children from parameters
+  const numberOfAdults = parameters.number_of_adults || 0;
+  const numberOfChildren = parameters.number_of_children || 0;
+
+  // Prices
+  const pricePerAdult = 100;
+  const pricePerChild = 50;
+
+  // Calculate total price
+  const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
 
   console.log(`User input: ${userInput}`);
+  console.log(`Number of adults: ${numberOfAdults}, Number of children: ${numberOfChildren}`);
+  console.log(`Total price calculated: $${totalPrice}`);
 
-  // The text query request to Dialogflow (without session management)
-  const request = {
-    queryInput: {
-      text: {
-        text: userInput, // The user's query
-        languageCode: 'en',
-      },
-    },
-    queryParams: {
-      timeZone: 'America/Los_Angeles', // You can set the time zone if needed
-    },
-  };
+  // Send the total price in the response back to the user
+  const responseText = `The total price for ${numberOfAdults} adults and ${numberOfChildren} children is $${totalPrice}.`;
 
-  try {
-    console.log('Sending request to Dialogflow:', request);
-
-    // Send the request to Dialogflow and get the response
-    const dialogflowClient = new dialogflow.SessionsClient();
-    const responses = await dialogflowClient.detectIntent({
-      session: `projects/${projectId}/agent/sessions/12345`, // Use a static session ID if desired
-      ...request,
-    });
-    const result = responses[0]?.queryResult;
-
-    if (!result) {
-      throw new Error('No response from Dialogflow');
-    }
-
-    console.log('Dialogflow response:', result.fulfillmentText);
-
-    // Send the Dialogflow response back to the frontend
-    res.json({
-      fulfillmentText: result.fulfillmentText,
-    });
-  } catch (error) {
-    console.error('Error communicating with Dialogflow:', error);
-    res.status(500).json({ error: 'Error communicating with Dialogflow' });
-  }
+  // Send the Dialogflow response back to the frontend
+  res.json({
+    fulfillmentText: responseText,
+  });
 });
 
 // Start the server
