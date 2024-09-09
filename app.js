@@ -8,7 +8,6 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // In-memory storage for conversation, number of adults, number of children, and state tracking
-let conversations = [];
 let numberOfAdults = null;  // To store the number of adults (null initially)
 let numberOfChildren = null;  // To store the number of children (null initially)
 let conversationState = 'ASK_ADULTS'; // Initialize state
@@ -55,8 +54,6 @@ app.post('/webhook', async (req, res) => {
     return res.status(400).json({ error: 'No user input found in the request' });
   }
 
-  console.log(`User input: ${userInput}`);
-
   // The text query request to Dialogflow (without session management)
   const request = {
     queryInput: {
@@ -71,8 +68,6 @@ app.post('/webhook', async (req, res) => {
   };
 
   try {
-    console.log('Sending request to Dialogflow:', request);
-
     // Send the request to Dialogflow and get the response
     const dialogflowClient = new dialogflow.SessionsClient();
     const responses = await dialogflowClient.detectIntent({
@@ -85,8 +80,6 @@ app.post('/webhook', async (req, res) => {
       throw new Error('No response from Dialogflow');
     }
 
-    console.log('Dialogflow response:', result.fulfillmentText);
-
     // Conversation Flow Management Based on State
     if (conversationState === 'ASK_ADULTS') {
       // Check if the user has responded with the number of adults
@@ -94,9 +87,7 @@ app.post('/webhook', async (req, res) => {
       if (adultsMatch && numberOfAdults === null) {
         numberOfAdults = parseInt(adultsMatch[0], 10); // Set the number of adults once
         conversationState = 'ASK_CHILDREN'; // Move to next state
-        console.log(`Number of adults set to: ${numberOfAdults}`);
       } else if (numberOfAdults !== null) {
-        console.log("Number of adults is already set and will not be updated.");
         conversationState = 'ASK_CHILDREN'; // Move to the next state even if it is already set
       }
     } else if (conversationState === 'ASK_CHILDREN') {
@@ -105,9 +96,7 @@ app.post('/webhook', async (req, res) => {
       if (childrenMatch && numberOfChildren === null) {
         numberOfChildren = parseInt(childrenMatch[0], 10); // Set the number of children once
         conversationState = 'ASK_DATE'; // Move to next state
-        console.log(`Number of children set to: ${numberOfChildren}`);
       } else if (numberOfChildren !== null) {
-        console.log("Number of children is already set and will not be updated.");
         conversationState = 'ASK_DATE'; // Move to the next state even if it is already set
       }
     }
@@ -118,30 +107,9 @@ app.post('/webhook', async (req, res) => {
       const pricePerChild = 50;   // Price for each child
 
       const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
-      console.log(`Total Price: ${totalPrice} (Adults: ${numberOfAdults} * $100, Children: ${numberOfChildren} * $50)`);
+      // Console log the total price
+      console.log(`Total Price: ${totalPrice}`);
     }
-
-    // Store conversation in memory
-    const conversation = {
-      userInput: userInput,
-      botResponse: result.fulfillmentText,
-      timestamp: new Date(),
-    };
-
-    // Add conversation to the in-memory array
-    conversations.push(conversation);
-
-    // Console log the entire conversation along with the number of adults and children if updated
-    console.log('Current conversation history:');
-    conversations.forEach((conv, index) => {
-      console.log(`\nConversation ${index + 1}`);
-      console.log(`User: ${conv.userInput}`);
-      console.log(`Bot: ${conv.botResponse}`);
-      console.log(`Timestamp: ${conv.timestamp}`);
-    });
-
-    console.log(`Current number of adults: ${numberOfAdults}`);
-    console.log(`Current number of children: ${numberOfChildren}`);
 
     // Send the Dialogflow response back to the frontend
     res.json({
