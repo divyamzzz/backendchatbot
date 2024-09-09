@@ -7,6 +7,9 @@ const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
+// In-memory storage for conversation
+let conversations = [];
+
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for all routes
 
@@ -80,6 +83,25 @@ app.post('/webhook', async (req, res) => {
     }
 
     console.log('Dialogflow response:', result.fulfillmentText);
+
+    // Store conversation in memory
+    const conversation = {
+      userInput: userInput,
+      botResponse: result.fulfillmentText,
+      timestamp: new Date(),
+    };
+
+    // Add conversation to the in-memory array
+    conversations.push(conversation);
+
+    // Console log the entire conversation
+    console.log('Current conversation history:');
+    conversations.forEach((conv, index) => {
+      console.log(`\nConversation ${index + 1}`);
+      console.log(`User: ${conv.userInput}`);
+      console.log(`Bot: ${conv.botResponse}`);
+      console.log(`Timestamp: ${conv.timestamp}`);
+    });
 
     // Send the Dialogflow response back to the frontend
     res.json({
