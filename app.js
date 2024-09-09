@@ -5,14 +5,14 @@ const dialogflow = require('@google-cloud/dialogflow');
 const fs = require('fs');
 const uuid = require('uuid');
 const cors = require('cors');
-const cookieParser = require('cookie-parser'); // Import cookie-parser
+const cookieParser = require('cookie-parser'); // To handle cookies
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(cookieParser()); // Use cookie-parser middleware
+app.use(cookieParser()); // To parse cookies
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
