@@ -4,10 +4,14 @@ const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
 const uuid = require('uuid');
 const fs = require('fs');
-const session = require('express-session');  // Use express-session for session management
+const session = require('express-session');
+const cors = require('cors');  // Import CORS middleware
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+// Use CORS middleware to allow requests from all origins (you can also configure specific origins)
+app.use(cors()); 
 
 // Use session middleware
 app.use(session({
@@ -73,36 +77,4 @@ app.post('/webhook', async (req, res) => {
     session: sessionPath,
     queryInput: {
       text: {
-        text: userInput, // The user's query
-        languageCode: 'en',
-      },
-    },
-  };
-
-  try {
-    console.log('Sending request to Dialogflow:', request);
-
-    // Send the request to Dialogflow and get the response
-    const responses = await sessionClient.detectIntent(request);
-    const result = responses[0]?.queryResult;
-
-    if (!result) {
-      throw new Error('No response from Dialogflow');
-    }
-
-    console.log('Dialogflow response:', result.fulfillmentText);
-
-    // Send the Dialogflow response back to the frontend
-    res.json({
-      fulfillmentText: result.fulfillmentText,
-    });
-  } catch (error) {
-    console.error('Error communicating with Dialogflow:', error);
-    res.status(500).json({ error: 'Error communicating with Dialogflow' });
-  }
-});
-
-
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+        text: userInput, //
