@@ -77,4 +77,36 @@ app.post('/webhook', async (req, res) => {
     session: sessionPath,
     queryInput: {
       text: {
-        text: userInput, //
+        text: userInput, // The user's query
+        languageCode: 'en',
+      },
+    },
+  };
+
+  try {
+    console.log('Sending request to Dialogflow:', request);
+
+    // Send the request to Dialogflow and get the response
+    const responses = await sessionClient.detectIntent(request);
+    const result = responses[0]?.queryResult;
+
+    if (!result) {
+      throw new Error('No response from Dialogflow');
+    }
+
+    console.log('Dialogflow response:', result.fulfillmentText);
+
+    // Send the Dialogflow response back to the frontend
+    res.json({
+      fulfillmentText: result.fulfillmentText,
+    });
+  } catch (error) {
+    console.error('Error communicating with Dialogflow:', error);
+    res.status(500).json({ error: 'Error communicating with Dialogflow' });
+  }
+});
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
