@@ -7,9 +7,10 @@ const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
-// In-memory storage for conversation and number of adults
+// In-memory storage for conversation, number of adults, and state tracking
 let conversations = [];
 let numberOfAdults = null;  // To store the number of adults (null initially)
+let conversationState = 'ASK_ADULTS'; // Initialize state
 
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for all routes
@@ -85,18 +86,24 @@ app.post('/webhook', async (req, res) => {
 
     console.log('Dialogflow response:', result.fulfillmentText);
 
-    // Check if the bot is asking for the number of adults
-    if (result.fulfillmentText.toLowerCase().includes("how many adults")) {
-      console.log("Bot asked: How many adults?");
+    // Conversation Flow Management Based on State
+    if (conversationState === 'ASK_ADULTS') {
+      // Check if the user has responded with the number of adults
+      const adultsMatch = userInput.match(/\d+/); // Check if the user input contains a number
+      if (adultsMatch && numberOfAdults === null) {
+        numberOfAdults = parseInt(adultsMatch[0], 10); // Set the number of adults once
+        conversationState = 'ASK_CHILDREN'; // Move to next state
+        console.log(`Number of adults set to: ${numberOfAdults}`);
+      } else if (numberOfAdults !== null) {
+        console.log("Number of adults is already set and will not be updated.");
+        conversationState = 'ASK_CHILDREN'; // Move to the next state even if it is already set
+      }
     }
 
-    // If the user has responded with a number and adults have not been set yet, update the number of adults
-    const adultsMatch = userInput.match(/\d+/); // Check if the user input contains a number
-    if (adultsMatch && result.fulfillmentText.toLowerCase().includes("how many adults") && numberOfAdults === null) {
-      numberOfAdults = parseInt(adultsMatch[0], 10); // Set the number of adults once
-      console.log(`Number of adults set to: ${numberOfAdults}`);
-    } else if (numberOfAdults !== null) {
-      console.log("Number of adults is already set and will not be updated.");
+    // Move to the next question based on the state
+    if (conversationState === 'ASK_CHILDREN') {
+      console.log("Bot is now asking: How many children?");
+      conversationState = 'ASK_DATE'; // After this question is answered, ask the next one
     }
 
     // Store conversation in memory
