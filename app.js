@@ -44,38 +44,51 @@ try {
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  // Log the entire request body to inspect the structure
-  console.log('Dialogflow Request Body:', JSON.stringify(req.body, null, 2));
-
-  // Check if queryResult and parameters are present in the request
-  const queryResult = req.body.queryResult;
-  if (!queryResult || !queryResult.parameters) {
-    return res.status(400).json({ error: 'Missing queryResult or parameters in the request' });
+  const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
+  if (!userInput) {
+    return res.status(400).json({ error: 'No user input found in the request' });
   }
 
-  // Extract parameters from Dialogflow
-  const parameters = queryResult.parameters;
-  const numberOfAdults = parameters.number_of_adults || 0;
-  const numberOfChildren = parameters.number_of_child || 0;
+  console.log(`User input: ${userInput}`);
 
-  // Prices
-  const pricePerAdult = 100;
-  const pricePerChild = 50;
+  // The text query request to Dialogflow (without session management)
+  const request = {
+    queryInput: {
+      text: {
+        text: userInput, // The user's query
+        languageCode: 'en',
+      },
+    },
+    queryParams: {
+      timeZone: 'America/Los_Angeles', // You can set the time zone if needed
+    },
+  };
 
-  // Calculate total price
-  const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
+  try {
+    console.log('Sending request to Dialogflow:', request);
 
-  console.log(`User input: ${queryResult.queryText}`);
-  console.log(`Number of adults: ${numberOfAdults}, Number of children: ${numberOfChildren}`);
-  console.log(`Total price calculated: $${totalPrice}`);
+    // Send the request to Dialogflow and get the response
+    const dialogflowClient = new dialogflow.SessionsClient();
+    const responses = await dialogflowClient.detectIntent({
+      session: `projects/${projectId}/agent/sessions/12345`, // Use a static session ID if desired
+      ...request,
+    });
+    const result = responses[0]?.queryResult;
 
-  // Send the total price in the response back to Dialogflow
-  const responseText = `The total price for ${numberOfAdults} adults and ${numberOfChildren} children is $${totalPrice}.`;
+    if (!result) {
+      throw new Error('No response from Dialogflow');
+    }
 
-  // Send the Dialogflow response back to the frontend
-  res.json({
-    fulfillmentText: responseText,
-  });
+    console.log('Dialogflow response:', result.fulfillmentText);
+
+    // Send the Dialogflow response back to the frontend
+    res.json({
+      fulfillmentText: result.fulfillmentText,
+    });
+  } catch (error) {
+    console.error('Error communicating with Dialogflow:', error);
+    res.status(500).json({ error: 'Error communicating with Dialogflow' });
+  }
 });
 
 // Start the server
