@@ -4,14 +4,14 @@ const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
 const uuid = require('uuid');
 const fs = require('fs');
-const session = require('express-session');
+const session = require('express-session');  // Use express-session for session management
 const cors = require('cors');  // Import CORS middleware
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Use CORS middleware to allow requests from all origins (you can also configure specific origins)
-app.use(cors()); 
+// Use CORS middleware to allow requests from all origins
+app.use(cors());
 
 // Use session middleware
 app.use(session({
@@ -62,7 +62,7 @@ app.post('/webhook', async (req, res) => {
 
   // Check if session ID exists in the session, if not generate a new one
   if (!req.session.dialogflowSessionId) {
-    req.session.dialogflowSessionId = uuid.v4();
+    req.session.dialogflowSessionId = uuid.v4();  // Generate a new session ID if none exists
     console.log(`Generated new session ID: ${req.session.dialogflowSessionId}`);
   } else {
     console.log(`Reusing existing session ID: ${req.session.dialogflowSessionId}`);
