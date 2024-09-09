@@ -1,19 +1,21 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Node.js backend for Dialogflow chatbot integration",
-  "main": "server.js", // Assuming server.js is your entry point file
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js", // Add start script for deployment
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["chatbot", "dialogflow", "backend", "express"],
-  "author": "Your Name", // Add your author name here
+  "keywords": [],
+  "author": "",
   "license": "ISC",
   "dependencies": {
     "@google-cloud/dialogflow": "^6.8.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "dialogflow": "^1.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7"
   }
 }
