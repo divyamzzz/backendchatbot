@@ -1,28 +1,39 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors'); // Import CORS middleware
 const dialogflow = require('@google-cloud/dialogflow');
+const cors = require('cors'); // Import CORS middleware
 const uuid = require('uuid');
+const fs = require('fs');
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
+
+// Enable CORS for all routes
+app.use(cors());
 
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
 
-// Use CORS to allow requests from the React frontend
-app.use(cors());
+// Create the service account credentials dynamically from the environment variable
+const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
 
-// Create a Dialogflow session client
-const projectId = 'newagent-rcgp'; // Replace with your Dialogflow project ID
+if (serviceAccountKey) {
+  const serviceAccountPath = './google-credentials.json';
+  fs.writeFileSync(serviceAccountPath, serviceAccountKey);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
+}
+
+// Dialogflow project ID from environment variable
+const projectId = process.env.DIALOGFLOW_PROJECT_ID;
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const userInput = req.body.message; // Get user input from the request
+  const userInput = req.body.message || req.body.queryResult.queryText; // Get user input from the request
 
-  // Generate a unique session ID
+  console.log(`User input: ${userInput}`);
+
+  // Create a new session
   const sessionId = uuid.v4();
-
-  // Create a new session for each user query
   const sessionClient = new dialogflow.SessionsClient();
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
 
@@ -31,8 +42,8 @@ app.post('/webhook', async (req, res) => {
     session: sessionPath,
     queryInput: {
       text: {
-        text: userInput, // The user query
-        languageCode: 'en', // Change language if necessary
+        text: userInput, // The user's query
+        languageCode: 'en',
       },
     },
   };
@@ -42,13 +53,14 @@ app.post('/webhook', async (req, res) => {
     const responses = await sessionClient.detectIntent(request);
     const result = responses[0].queryResult;
 
-    // Extract and send Dialogflow's response back to the React frontend
-    const botResponse = result.fulfillmentText;
+    console.log('Dialogflow response:', result.fulfillmentText);
+
+    // Send the Dialogflow response back to the frontend
     res.json({
-      fulfillmentText: botResponse, // Send Dialogflow's response back
+      fulfillmentText: result.fulfillmentText,
     });
   } catch (error) {
-    console.error('Error sending message to Dialogflow:', error);
+    console.error('Error communicating with Dialogflow:', error);
     res.status(500).json({ error: 'Error communicating with Dialogflow' });
   }
 });
