@@ -44,10 +44,17 @@ try {
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const userInput = req.body.queryResult?.queryText; // Get user input from Dialogflow
-  const parameters = req.body.queryResult?.parameters; // Get parameters from Dialogflow
+  // Log the entire request body to inspect the structure
+  console.log('Dialogflow Request Body:', JSON.stringify(req.body, null, 2));
 
-  // Extract number of adults and children from parameters
+  // Check if queryResult and parameters are present in the request
+  const queryResult = req.body.queryResult;
+  if (!queryResult || !queryResult.parameters) {
+    return res.status(400).json({ error: 'Missing queryResult or parameters in the request' });
+  }
+
+  // Extract parameters from Dialogflow
+  const parameters = queryResult.parameters;
   const numberOfAdults = parameters.number_of_adults || 0;
   const numberOfChildren = parameters.number_of_children || 0;
 
@@ -58,11 +65,11 @@ app.post('/webhook', async (req, res) => {
   // Calculate total price
   const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
 
-  console.log(`User input: ${userInput}`);
+  console.log(`User input: ${queryResult.queryText}`);
   console.log(`Number of adults: ${numberOfAdults}, Number of children: ${numberOfChildren}`);
   console.log(`Total price calculated: $${totalPrice}`);
 
-  // Send the total price in the response back to the user
+  // Send the total price in the response back to Dialogflow
   const responseText = `The total price for ${numberOfAdults} adults and ${numberOfChildren} children is $${totalPrice}.`;
 
   // Send the Dialogflow response back to the frontend
