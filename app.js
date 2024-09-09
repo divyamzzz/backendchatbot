@@ -4,12 +4,15 @@ const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
 const fs = require('fs');
 const uuid = require('uuid');
+const cors = require('cors');
+const cookieParser = require('cookie-parser'); // Import cookie-parser
+
 const app = express();
 const port = process.env.PORT || 5000;
-const cors = require('cors');
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(cookieParser()); // Use cookie-parser middleware
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
@@ -21,7 +24,7 @@ if (serviceAccountKey) {
   console.log('Service account key has been successfully written to', serviceAccountPath);
 } else {
   console.error('GOOGLE_APPLICATION_CREDENTIALS_CONTENTS is not set. Please set the environment variable.');
-  process.exit(1);
+  process.exit(1); // Exit if credentials are not available
 }
 
 // Dialogflow project ID
@@ -29,7 +32,7 @@ const projectId = process.env.DIALOGFLOW_PROJECT_ID;
 
 if (!projectId) {
   console.error('DIALOGFLOW_PROJECT_ID is not set. Please set the environment variable.');
-  process.exit(1);
+  process.exit(1); // Exit if project ID is not available
 } else {
   console.log('Using Dialogflow project ID:', projectId);
 }
@@ -41,16 +44,21 @@ try {
   console.log('Dialogflow client successfully initialized.');
 } catch (error) {
   console.error('Error initializing Dialogflow client:', error);
-  process.exit(1);
+  process.exit(1); // Exit if client initialization fails
 }
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
   const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
-  let sessionId = req.body.sessionId; // Expect sessionId to be passed from the client
+
+  // Get sessionId from the cookie or generate a new one if not present
+  let sessionId = req.cookies.sessionId;
   if (!sessionId) {
-    // If no session ID is passed, generate a new one (used only when there's no active session)
     sessionId = uuid.v4();
+    res.cookie('sessionId', sessionId, { httpOnly: true, maxAge: 3600000 }); // Set the sessionId in a cookie for 1 hour
+    console.log(`Generated new session ID: ${sessionId}`);
+  } else {
+    console.log(`Using existing session ID from cookie: ${sessionId}`);
   }
 
   if (!userInput) {
@@ -60,7 +68,7 @@ app.post('/webhook', async (req, res) => {
   console.log(`User input: ${userInput}`);
   console.log(`Session ID: ${sessionId}`);
 
-  // Reuse the session ID provided by the client or generated
+  // Reuse the session ID from the cookie
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
   console.log('Session Path:', sessionPath);
 
@@ -91,7 +99,6 @@ app.post('/webhook', async (req, res) => {
     // Send the Dialogflow response back to the frontend
     res.json({
       fulfillmentText: result.fulfillmentText,
-      sessionId: sessionId, // Return sessionId for the client to reuse
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
