@@ -7,8 +7,9 @@ const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
-// In-memory storage for conversation
+// In-memory storage for conversation and number of adults
 let conversations = [];
+let numberOfAdults = 0;  // To store the number of adults
 
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for all routes
@@ -84,6 +85,18 @@ app.post('/webhook', async (req, res) => {
 
     console.log('Dialogflow response:', result.fulfillmentText);
 
+    // Check if the bot is asking for the number of adults
+    if (result.fulfillmentText.toLowerCase().includes("how many adults")) {
+      console.log("Bot asked: How many adults?");
+    }
+
+    // If the user has responded with a number, update the number of adults
+    const adultsMatch = userInput.match(/\d+/); // Check if the user input contains a number
+    if (adultsMatch && result.fulfillmentText.toLowerCase().includes("how many adults")) {
+      numberOfAdults = parseInt(adultsMatch[0], 10); // Update the number of adults
+      console.log(`Number of adults updated: ${numberOfAdults}`);
+    }
+
     // Store conversation in memory
     const conversation = {
       userInput: userInput,
@@ -94,7 +107,7 @@ app.post('/webhook', async (req, res) => {
     // Add conversation to the in-memory array
     conversations.push(conversation);
 
-    // Console log the entire conversation
+    // Console log the entire conversation along with the number of adults if updated
     console.log('Current conversation history:');
     conversations.forEach((conv, index) => {
       console.log(`\nConversation ${index + 1}`);
@@ -102,6 +115,8 @@ app.post('/webhook', async (req, res) => {
       console.log(`Bot: ${conv.botResponse}`);
       console.log(`Timestamp: ${conv.timestamp}`);
     });
+
+    console.log(`Current number of adults: ${numberOfAdults}`);
 
     // Send the Dialogflow response back to the frontend
     res.json({
