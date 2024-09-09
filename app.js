@@ -112,6 +112,15 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
+    // Calculate the total price after both adults and children have been set
+    if (numberOfAdults !== null && numberOfChildren !== null) {
+      const pricePerAdult = 100;  // Price for each adult
+      const pricePerChild = 50;   // Price for each child
+
+      const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
+      console.log(`Total Price: ${totalPrice} (Adults: ${numberOfAdults} * $100, Children: ${numberOfChildren} * $50)`);
+    }
+
     // Store conversation in memory
     const conversation = {
       userInput: userInput,
