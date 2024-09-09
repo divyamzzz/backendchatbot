@@ -56,7 +56,7 @@ app.post('/webhook', async (req, res) => {
   // Extract parameters from Dialogflow
   const parameters = queryResult.parameters;
   const numberOfAdults = parameters.number_of_adults || 0;
-  const numberOfChildren = parameters.number_of_children || 0;
+  const numberOfChildren = parameters.number_of_child || 0;
 
   // Prices
   const pricePerAdult = 100;
