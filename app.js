@@ -16,19 +16,36 @@ app.use(bodyParser.json());
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
-
 if (serviceAccountKey) {
   const serviceAccountPath = './google-credentials.json';
-  fs.writeFileSync(serviceAccountPath, serviceAccountKey);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
+  try {
+    fs.writeFileSync(serviceAccountPath, serviceAccountKey);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
+    console.log('Service account credentials successfully written to', serviceAccountPath);
+  } catch (err) {
+    console.error('Error writing service account credentials:', err);
+    process.exit(1); // Exit if credentials can't be written
+  }
+} else {
+  console.error('GOOGLE_APPLICATION_CREDENTIALS_CONTENTS is not set');
+  process.exit(1); // Exit if credentials are not available
 }
 
-// Dialogflow project ID from environment variable
+// Check if the project ID environment variable is set
 const projectId = process.env.DIALOGFLOW_PROJECT_ID;
+if (!projectId) {
+  console.error('DIALOGFLOW_PROJECT_ID environment variable is not set');
+  process.exit(1);
+} else {
+  console.log('Using Dialogflow project ID:', projectId);
+}
 
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const userInput = req.body.message || req.body.queryResult.queryText; // Get user input from the request
+  const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input from the request
+  if (!userInput) {
+    return res.status(400).json({ error: 'No user input found in the request' });
+  }
 
   console.log(`User input: ${userInput}`);
 
@@ -49,9 +66,15 @@ app.post('/webhook', async (req, res) => {
   };
 
   try {
+    console.log('Sending request to Dialogflow:', request);
+    
     // Send the request to Dialogflow and get the response
     const responses = await sessionClient.detectIntent(request);
-    const result = responses[0].queryResult;
+    const result = responses[0]?.queryResult;
+
+    if (!result) {
+      throw new Error('No response from Dialogflow');
+    }
 
     console.log('Dialogflow response:', result.fulfillmentText);
 
@@ -61,7 +84,13 @@ app.post('/webhook', async (req, res) => {
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
-    res.status(500).json({ error: 'Error communicating with Dialogflow' });
+
+    // Check if it's an authentication error
+    if (error.code === 7) {
+      console.error('IAM permission error. Ensure the service account has the necessary permissions.');
+    }
+
+    res.status(500).json({ error: 'Error communicating with Dialogflow', details: error.message });
   }
 });
 
