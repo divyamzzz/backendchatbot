@@ -6,6 +6,8 @@ const uuid = require('uuid');
 const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 5000;
+const cors = require('cors');
+app.use(cors()); // Allow requests from all origins
 
 app.use(bodyParser.json());
 
