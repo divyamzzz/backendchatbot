@@ -2,17 +2,27 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
-const fs = require('fs');
 const uuid = require('uuid');
-const cors = require('cors');
-const cookieParser = require('cookie-parser'); // To handle cookies
+const fs = require('fs');
+const cors = require('cors');  // Import CORS package
+const session = require('express-session');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Enable CORS for all origins (or specify particular origins in the options)
 app.use(cors());
+
+// Parse JSON requests
 app.use(bodyParser.json());
-app.use(cookieParser()); // To parse cookies
+
+// Configure session management
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1-day session expiry
+}));
 
 // Create the service account credentials dynamically from the environment variable
 const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS_CONTENTS;
@@ -39,6 +49,7 @@ if (!projectId) {
 
 let sessionClient;
 
+// Try to initialize the Dialogflow client and log if it's loaded
 try {
   sessionClient = new dialogflow.SessionsClient();
   console.log('Dialogflow client successfully initialized.');
@@ -47,28 +58,26 @@ try {
   process.exit(1); // Exit if client initialization fails
 }
 
+// Get the service account details
+try {
+  const credentials = JSON.parse(serviceAccountKey);
+  console.log('Using service account:', credentials.client_email);
+} catch (error) {
+  console.error('Error parsing service account credentials:', error);
+  process.exit(1); // Exit if service account credentials parsing fails
+}
+
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
   const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
-
-  // Get sessionId from the cookie or generate a new one if not present
-  let sessionId = req.cookies.sessionId;
-  if (!sessionId) {
-    sessionId = uuid.v4();
-    res.cookie('sessionId', sessionId, { httpOnly: true, maxAge: 3600000 }); // Set the sessionId in a cookie for 1 hour
-    console.log(`Generated new session ID: ${sessionId}`);
-  } else {
-    console.log(`Using existing session ID from cookie: ${sessionId}`);
-  }
-
   if (!userInput) {
     return res.status(400).json({ error: 'No user input found in the request' });
   }
 
   console.log(`User input: ${userInput}`);
-  console.log(`Session ID: ${sessionId}`);
 
-  // Reuse the session ID from the cookie
+  // Create a new session
+  const sessionId = uuid.v4();
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
   console.log('Session Path:', sessionPath);
 
@@ -102,7 +111,7 @@ app.post('/webhook', async (req, res) => {
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
-    res.status(500).json({ error: 'Error communicating with Dialogflow', details: error.message });
+    res.status(500).json({ error: 'Error communicating with Dialogflow' });
   }
 });
 
