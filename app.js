@@ -2,13 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const dialogflow = require('@google-cloud/dialogflow');
-const uuid = require('uuid');
 const fs = require('fs');
+const uuid = require('uuid');
 const app = express();
 const port = process.env.PORT || 5000;
 const cors = require('cors');
-app.use(cors()); // Allow requests from all origins
 
+app.use(cors());
 app.use(bodyParser.json());
 
 // Create the service account credentials dynamically from the environment variable
@@ -57,14 +57,20 @@ try {
 // Dialogflow webhook endpoint
 app.post('/webhook', async (req, res) => {
   const userInput = req.body.message || req.body.queryResult?.queryText; // Get user input
+  let sessionId = req.body.sessionId; // Expect sessionId to be passed from the client
+  if (!sessionId) {
+    // If no session ID is passed, generate a new one
+    sessionId = uuid.v4();
+  }
+
   if (!userInput) {
     return res.status(400).json({ error: 'No user input found in the request' });
   }
 
   console.log(`User input: ${userInput}`);
+  console.log(`Session ID: ${sessionId}`);
 
-  // Create a new session
-  const sessionId = uuid.v4();
+  // Reuse the session ID provided by the client or generated
   const sessionPath = sessionClient.projectAgentSessionPath(projectId, sessionId);
   console.log('Session Path:', sessionPath);
 
@@ -95,6 +101,7 @@ app.post('/webhook', async (req, res) => {
     // Send the Dialogflow response back to the frontend
     res.json({
       fulfillmentText: result.fulfillmentText,
+      sessionId: sessionId, // Return sessionId for the client to reuse
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
@@ -106,4 +113,3 @@ app.post('/webhook', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-
