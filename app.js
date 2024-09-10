@@ -7,9 +7,11 @@ const cors = require('cors'); // Import cors
 const app = express();
 const port = process.env.PORT || 5000;
 
-// In-memory storage for conversation, number of adults, number of children, and state tracking
+// In-memory storage for conversation, number of adults, number of children, date, time, and state tracking
 let numberOfAdults = null;  // To store the number of adults (null initially)
 let numberOfChildren = null;  // To store the number of children (null initially)
+let reservationDate = null;   // To store the reservation date
+let reservationTime = null;   // To store the reservation time
 let conversationState = 'ASK_ADULTS'; // Initialize state
 
 app.use(bodyParser.json());
@@ -99,25 +101,47 @@ app.post('/webhook', async (req, res) => {
       } else if (numberOfChildren !== null) {
         conversationState = 'ASK_DATE'; // Move to the next state even if it is already set
       }
+    } else if (conversationState === 'ASK_DATE') {
+      // Ask for the reservation date
+      if (userInput && !reservationDate) {
+        reservationDate = userInput; // Set the reservation date
+        conversationState = 'ASK_TIME'; // Move to next state
+      }
+    } else if (conversationState === 'ASK_TIME') {
+      // Ask for the reservation time
+      if (userInput && !reservationTime) {
+        reservationTime = userInput; // Set the reservation time
+        conversationState = 'RESULT'; // Move to the final state
+      }
     }
 
-    // Calculate the total price after both adults and children have been set
-    if (numberOfAdults !== null && numberOfChildren !== null) {
+    // Once all information is gathered, we can calculate the total price and send the final response
+    if (conversationState === 'RESULT') {
       const pricePerAdult = 100;  // Price for each adult
       const pricePerChild = 50;   // Price for each child
 
       const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
       
-      // Send the total price in the response with the confirmation message
+      // Send the final response with the total price and reservation confirmation
       return res.json({
-        fulfillmentText: `Okay your tickets have been reserved. Please make the payment to complete booking. Total price: ${totalPrice}`,  // Add total price after the reservation message
+        fulfillmentText: `Thank you! Your reservation for ${numberOfAdults} adults and ${numberOfChildren} children on ${reservationDate} at ${reservationTime} has been confirmed. Please make the payment to complete the booking. Total price: ${totalPrice}`,  
         totalPrice: totalPrice,  // Also send the total price in case you need it separately
       });
     }
 
+    // If not yet in RESULT state, continue with the conversation based on state
+    let promptMessage = '';
+    if (conversationState === 'ASK_CHILDREN') {
+      promptMessage = 'How many children will be attending?';
+    } else if (conversationState === 'ASK_DATE') {
+      promptMessage = 'Please provide a reservation date.';
+    } else if (conversationState === 'ASK_TIME') {
+      promptMessage = 'Please provide a reservation time.';
+    }
+
     // Send the Dialogflow response back to the frontend
     res.json({
-      fulfillmentText: result.fulfillmentText,
+      fulfillmentText: promptMessage || result.fulfillmentText,
     });
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
