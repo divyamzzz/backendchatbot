@@ -108,10 +108,10 @@ app.post('/webhook', async (req, res) => {
 
       const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
       
-      // Send the total price in the response along with the fulfillment text
+      // Send the total price in the response with the confirmation message
       return res.json({
-        fulfillmentText: result.fulfillmentText,
-        totalPrice: totalPrice,  // Add the total price in the response
+        fulfillmentText: `Okay your tickets have been reserved. Please make the payment to complete booking. Total price: ${totalPrice}`,  // Add total price after the reservation message
+        totalPrice: totalPrice,  // Also send the total price in case you need it separately
       });
     }
 
