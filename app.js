@@ -83,35 +83,45 @@ app.post('/webhook', async (req, res) => {
     }
 
     // Conversation Flow Management Based on State
+    let promptMessage = '';
+
     if (conversationState === 'ASK_ADULTS') {
       // Check if the user has responded with the number of adults
       const adultsMatch = userInput.match(/\d+/); // Check if the user input contains a number
-      if (adultsMatch && numberOfAdults === null) {
+      if (adultsMatch) {
         numberOfAdults = parseInt(adultsMatch[0], 10); // Set the number of adults once
         conversationState = 'ASK_CHILDREN'; // Move to next state
-      } else if (numberOfAdults !== null) {
-        conversationState = 'ASK_CHILDREN'; // Move to the next state even if it is already set
+        promptMessage = 'How many children will be attending?';
+      } else {
+        promptMessage = 'Please provide the number of adults attending.';
       }
     } else if (conversationState === 'ASK_CHILDREN') {
       // Check if the user has responded with the number of children
       const childrenMatch = userInput.match(/\d+/); // Check if the user input contains a number
-      if (childrenMatch && numberOfChildren === null) {
+      if (childrenMatch) {
         numberOfChildren = parseInt(childrenMatch[0], 10); // Set the number of children once
         conversationState = 'ASK_DATE'; // Move to next state
-      } else if (numberOfChildren !== null) {
-        conversationState = 'ASK_DATE'; // Move to the next state even if it is already set
+        promptMessage = 'Please provide the reservation date.';
+      } else {
+        promptMessage = 'Please provide the number of children attending.';
       }
     } else if (conversationState === 'ASK_DATE') {
       // Ask for the reservation date
-      if (userInput && !reservationDate) {
+      if (userInput) {
         reservationDate = userInput; // Set the reservation date
         conversationState = 'ASK_TIME'; // Move to next state
+        promptMessage = 'Please provide the reservation time.';
+      } else {
+        promptMessage = 'Please provide a valid reservation date.';
       }
     } else if (conversationState === 'ASK_TIME') {
       // Ask for the reservation time
-      if (userInput && !reservationTime) {
+      if (userInput) {
         reservationTime = userInput; // Set the reservation time
         conversationState = 'RESULT'; // Move to the final state
+        promptMessage = ''; // This will trigger the final result message below
+      } else {
+        promptMessage = 'Please provide a valid reservation time.';
       }
     }
 
@@ -129,20 +139,11 @@ app.post('/webhook', async (req, res) => {
       });
     }
 
-    // If not yet in RESULT state, continue with the conversation based on state
-    let promptMessage = '';
-    if (conversationState === 'ASK_CHILDREN') {
-      promptMessage = 'How many children will be attending?';
-    } else if (conversationState === 'ASK_DATE') {
-      promptMessage = 'Please provide a reservation date.';
-    } else if (conversationState === 'ASK_TIME') {
-      promptMessage = 'Please provide a reservation time.';
-    }
-
-    // Send the Dialogflow response back to the frontend
+    // If not yet in RESULT state, continue with the conversation based on the current state
     res.json({
       fulfillmentText: promptMessage || result.fulfillmentText,
     });
+
   } catch (error) {
     console.error('Error communicating with Dialogflow:', error);
     res.status(500).json({ error: 'Error communicating with Dialogflow' });
