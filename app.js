@@ -107,8 +107,12 @@ app.post('/webhook', async (req, res) => {
       const pricePerChild = 50;   // Price for each child
 
       const totalPrice = (numberOfAdults * pricePerAdult) + (numberOfChildren * pricePerChild);
-      // Console log the total price
-      console.log(`Total Price: ${totalPrice}`);
+      
+      // Send the total price in the response along with the fulfillment text
+      return res.json({
+        fulfillmentText: result.fulfillmentText,
+        totalPrice: totalPrice,  // Add the total price in the response
+      });
     }
 
     // Send the Dialogflow response back to the frontend
